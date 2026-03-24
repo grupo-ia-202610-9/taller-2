@@ -25,6 +25,28 @@ def backtracking_search(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     Artificial Intelligence: A Modern Approach (4th Edition) by Russell and Norvig, Chapter 5: Constraint Satisfaction Problems
     """
     # TODO: Implement your code here
+
+    assignment = {}
+    variables = list(csp.variables)
+    n_vars = len(variables)
+    stack = [(0, 0, variables[0])]
+    while stack:
+        var_idx, val_idx, var = stack[-1]
+        if var_idx == n_vars:
+            return assignment
+        if val_idx >= len(csp.domains[var]):
+            if var in assignment:
+                csp.unassign(var, assignment)
+            stack.pop()
+            continue
+        value = csp.domains[var][val_idx]
+        stack[-1] = (var_idx, val_idx + 1, var)
+        if csp.is_consistent(var, value, assignment):
+            csp.assign(var, value, assignment)
+            if var_idx == n_vars - 1:
+                return assignment
+            next_var = variables[var_idx + 1]
+            stack.append((var_idx + 1, 0, next_var))
     return None
 
 
