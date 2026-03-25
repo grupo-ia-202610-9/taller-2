@@ -10,6 +10,22 @@ import copy
 
 def backtracking_search(csp: DroneAssignmentCSP) -> dict[str, str] | None:
     """
+    Basic backtracking search without optimizations (iterative version).
+    """
+    stats = {"assignments": 0, "backtracks": 0}
+    t0 = time.perf_counter()
+    
+    result = backtracking(csp, stats)
+    
+    t1 = time.perf_counter()
+    print(f"Backtracking stats - Assignments: {stats['assignments']}, Backtracks: {stats['backtracks']}")
+    print(f"Tiempo de ejecución: {round(t1 - t0, 5)}s")
+    
+    return result
+
+
+def backtracking(csp: DroneAssignmentCSP, stats: dict) -> dict[str, str] | None:
+    """
     Basic backtracking search without optimizations.
 
     Tips:
@@ -39,12 +55,14 @@ def backtracking_search(csp: DroneAssignmentCSP) -> dict[str, str] | None:
         if val_idx >= len(csp.domains[var]):
             if var in assignment:
                 csp.unassign(var, assignment)
+                stats["backtracks"] += 1
             stack.pop()
             continue
         value = csp.domains[var][val_idx]
         stack[-1] = (var_idx, val_idx + 1, var)
         if csp.is_consistent(var, value, assignment):
             csp.assign(var, value, assignment)
+            stats["assignments"] += 1
             if var_idx == n_vars - 1:
                 return assignment
             next_var = variables[var_idx + 1]
