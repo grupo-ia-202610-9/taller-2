@@ -45,6 +45,40 @@ class RandomAgent(MultiAgentSearchAgent):
         return random.choice(legal_actions) if legal_actions else None
 
 
+class MultiAgentSearchAgent(Agent, ABC):
+    """
+    Base class for multi-agent search agents (Minimax, AlphaBeta, Expectimax).
+    """
+
+    def __init__(self, depth: str = "2", _index: int = 0, prob: str = "0.0") -> None:
+        self.index = 0  # Drone is always agent 0
+        self.depth = int(depth)
+        self.prob = float(
+            prob
+        )  # Probability that each hunter acts randomly (0=greedy, 1=random)
+        self.evaluation_function = evaluation.evaluation_function
+
+    @abstractmethod
+    def get_action(self, state: GameState) -> Directions | None:
+        """
+        Returns the best action for the drone from the current GameState.
+        """
+        pass
+
+
+class RandomAgent(MultiAgentSearchAgent):
+    """
+    Agent that chooses a legal action uniformly at random.
+    """
+
+    def get_action(self, state: GameState) -> Directions | None:
+        """
+        Get a random legal action for the drone.
+        """
+        legal_actions = state.get_legal_actions(self.index)
+        return random.choice(legal_actions) if legal_actions else None
+
+
 class MinimaxAgent(MultiAgentSearchAgent):
     """
     Minimax agent for the drone (MAX) vs hunters (MIN) game.
@@ -66,7 +100,31 @@ class MinimaxAgent(MultiAgentSearchAgent):
         - Return the ACTION (not the value) that maximizes the minimax value for the drone.
         """
         # TODO: Implement your code here
-        return None
+        return self.minimax_recursive(state, self.index, self.depth * state.get_num_agents())[0]
+    
+    def minimax_recursive(self, state: GameState, agent_index: int, depth: int) -> tuple[Directions, float]:
+        
+        if state.is_win() or state.is_lose() or depth == 0:
+            return None, self.evaluation_function(state)
+
+        legal_actions = state.get_legal_actions(agent_index)
+        if not legal_actions:
+            return None, self.evaluation_function(state)
+        
+        next_agent = (agent_index + 1) % state.get_num_agents()
+        
+        actions_with_values = {} #key: eval
+        for action in legal_actions:
+            successor = state.generate_successor(agent_index, action)
+            _, value = self.minimax_recursive(successor, next_agent, depth - 1)
+            actions_with_values[value] = action # This discards tied actions, but that doesn't affect the correctness of the action. 
+        
+        if agent_index == 0:  # MAX node (drone)
+            max_value = max(actions_with_values.keys())
+            return actions_with_values[max_value], max_value
+        else:
+            min_value = min(actions_with_values.keys())
+            return actions_with_values[min_value], min_value
 
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
@@ -91,7 +149,44 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         - Pass alpha and beta through the recursive calls.
         """
         # TODO: Implement your code here (BONUS)
-        return None
+        return self.alphabeta_recursive(state, self.index, self.depth * state.get_num_agents(), float("-inf"), float("inf"))[0]
+    
+    def alphabeta_recursive(self, state: GameState, agent_index: int, depth: int, alpha: float, beta: float) -> tuple[Directions, float]:
+        
+        if state.is_win() or state.is_lose() or depth == 0:
+            return None, self.evaluation_function(state)
+
+        legal_actions = state.get_legal_actions(agent_index)
+        if not legal_actions:
+            return None, self.evaluation_function(state)
+        
+        next_agent = (agent_index + 1) % state.get_num_agents()
+        
+        actions_with_values = {} #key: eval
+        for action in legal_actions:
+            successor = state.generate_successor(agent_index, action)
+            _, value = self.alphabeta_recursive(successor, next_agent, depth - 1, alpha, beta)
+            
+            if agent_index == 0:  # MAX node (drone)
+                if value > beta: #prune
+                    break
+                alpha = max(alpha, value)
+                actions_with_values[value] = action
+            else: #MIN node (hunter)
+                if value < alpha: #prune
+                    break
+                beta = min(beta, value)
+                actions_with_values[value] = action
+            
+        if len(actions_with_values) == 0: 
+            return None, float("inf") * -1**(int(agent_index == 0)) # in case any of the branches wont be taken into consideration
+        
+        if agent_index == 0:  # MAX node (drone)
+            max_value = max(actions_with_values.keys())
+            return actions_with_values[max_value], max_value
+        else:
+            min_value = min(actions_with_values.keys())
+            return actions_with_values[min_value], min_value
 
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
