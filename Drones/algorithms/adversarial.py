@@ -123,5 +123,57 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         - Do NOT prune in expectimax (unlike alpha-beta).
         - self.prob is set via the constructor argument prob.
         """
-        # TODO: Implement your code here
-        return None
+        def expectimax(current_state: GameState, depth: int, agent_index: int) -> float:
+            if current_state.is_win() or current_state.is_lose() or depth == self.depth:
+                return self.evaluation_function(current_state)
+            
+            legal_actions = current_state.get_legal_actions(agent_index)
+            if not legal_actions:
+                return self.evaluation_function(current_state)
+
+           
+            next_agent = (agent_index + 1) % current_state.get_num_agents()
+            next_depth = depth + 1 if next_agent == 0 else depth
+
+            if agent_index == 0:  
+                best_value = float('-inf')
+                for action in legal_actions:
+                    successor = current_state.generate_successor(agent_index, action)
+                    best_value = max(best_value, expectimax(successor, next_depth, next_agent))
+                return best_value
+            
+            else:  
+                child_values = []
+                for action in legal_actions:
+                    successor = current_state.generate_successor(agent_index, action)
+                    child_values.append(expectimax(successor, next_depth, next_agent))
+                
+                p = self.prob
+                min_val = min(child_values)
+                mean_val = sum(child_values) / len(child_values)
+                
+                return (1 - p) * min_val + p * mean_val
+
+        
+        legal_actions = state.get_legal_actions(0) 
+        if not legal_actions:
+            return None
+
+        best_action = None
+        best_value = float('-inf')
+        
+        next_agent = 1 % state.get_num_agents()
+        next_depth = 1 if next_agent == 0 else 0
+
+        for action in legal_actions:
+            successor = state.generate_successor(0, action)
+            value = expectimax(successor, next_depth, next_agent)
+            
+            if value > best_value:
+                best_value = value
+                best_action = action
+
+        if best_action is None:
+            best_action = legal_actions[0]
+
+        return best_action
