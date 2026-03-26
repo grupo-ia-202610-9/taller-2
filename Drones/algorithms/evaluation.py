@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from algorithms.utils import bfs_distance, dijkstra
+
 
 if TYPE_CHECKING:
     from world.game_state import GameState
@@ -42,4 +44,53 @@ def evaluation_function(state: GameState) -> float:
     - A good evaluation function balances delivery progress with hunter avoidance.
     """
     # TODO: Implement your code here
-    return 0.0
+    
+    if state.is_lose():
+        return -1000.0
+    if state.is_win():
+        return 1000.0
+
+    layout = state.get_layout()
+    drone = state.get_drone_position()
+    hunters = state.get_hunter_positions()
+    pending = list(state.get_pending_deliveries())
+
+    value = 0.0
+
+    value += 2.0 * state.get_score()
+
+    value -= 10.0 * len(pending)
+
+    if pending:
+        delivery_costs = []
+        for d in pending:
+            cost, _ = dijkstra(layout, drone, d)
+            if cost != float("inf"):
+                delivery_costs.append(cost)
+
+        if delivery_costs:
+            value -= 3.0 * min(delivery_costs)
+        else:
+            value -= 300.0  # bad if all deliveries are 'caged'
+
+    hunter_dists = []
+    for h in hunters:
+        dist = bfs_distance(layout, h, drone, hunter_restricted=True)
+        if dist != float("inf"):
+            hunter_dists.append(dist)
+
+    if hunter_dists:
+        nearest_hunter = min(hunter_dists)
+        value -= 120.0 / (nearest_hunter + 1) # using +1 to avoid division by zero and make the penalty grow exponentially~ with closeness of hunters
+
+        if nearest_hunter <= 1:
+            value -= 250.0
+        elif nearest_hunter == 2:
+            value -= 100.0
+    else:
+        value += 30.0  # unreachable hunters rn are better
+        
+    # all weights were used to have a relatively big magnitude, therefore less ties between states.
+    # to get the implementation to peak efficiency, it would be necessary to tune the weights through testing and experimentation
+
+    return max(-1000.0, min(1000.0, value))
