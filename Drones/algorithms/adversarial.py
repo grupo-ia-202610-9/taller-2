@@ -153,6 +153,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         beta: float,
     ) -> tuple[Directions | None, float]:
 
+        # base cases
         if state.is_win() or state.is_lose() or depth == 0:
             return None, self.evaluation_function(state)
 
@@ -161,10 +162,12 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             return None, self.evaluation_function(state)
 
         next_agent = (agent_index + 1) % state.get_num_agents()
+        
+        #actual alpha-beta logic
 
         if agent_index == 0:  # MAX node
             best_action = None
-            best_value = float("-inf")
+            best_value = float("-inf") # used so we have a numeric value for the max function
 
             for action in legal_actions:
                 successor = state.generate_successor(agent_index, action)
@@ -178,7 +181,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
                 alpha = max(alpha, best_value)
 
-                # strict pruning, as requested
+                # strict pruning
                 if best_value > beta:
                     return best_action, best_value
 
