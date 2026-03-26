@@ -135,58 +135,76 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     """
 
     def get_action(self, state: GameState) -> Directions | None:
-        """
-        Returns the best action for the drone using alpha-beta pruning.
+        action, _ = self.alphabeta_recursive(
+            state,
+            self.index,
+            self.depth * state.get_num_agents(),
+            float("-inf"),
+            float("inf"),
+        )
+        return action
 
-        Tips:
-        - Same structure as MinimaxAgent, but with alpha-beta pruning.
-        - Alpha: best value MAX can guarantee (initially -inf).
-        - Beta: best value MIN can guarantee (initially +inf).
-        - MAX node: prune when value > beta (strict inequality, do NOT prune on equality).
-        - MIN node: prune when value < alpha (strict inequality, do NOT prune on equality).
-        - Update alpha at MAX nodes: alpha = max(alpha, value).
-        - Update beta at MIN nodes: beta = min(beta, value).
-        - Pass alpha and beta through the recursive calls.
-        """
-        # TODO: Implement your code here (BONUS)
-        return self.alphabeta_recursive(state, self.index, self.depth * state.get_num_agents(), float("-inf"), float("inf"))[0]
-    
-    def alphabeta_recursive(self, state: GameState, agent_index: int, depth: int, alpha: float, beta: float) -> tuple[Directions, float]:
-        
+    def alphabeta_recursive(
+        self,
+        state: GameState,
+        agent_index: int,
+        depth: int,
+        alpha: float,
+        beta: float,
+    ) -> tuple[Directions | None, float]:
+
         if state.is_win() or state.is_lose() or depth == 0:
             return None, self.evaluation_function(state)
 
         legal_actions = state.get_legal_actions(agent_index)
         if not legal_actions:
             return None, self.evaluation_function(state)
-        
+
         next_agent = (agent_index + 1) % state.get_num_agents()
-        
-        actions_with_values = {} #key: eval
-        for action in legal_actions:
-            successor = state.generate_successor(agent_index, action)
-            _, value = self.alphabeta_recursive(successor, next_agent, depth - 1, alpha, beta)
-            
-            if agent_index == 0:  # MAX node (drone)
-                if value > beta: #prune
-                    break
-                alpha = max(alpha, value)
-                actions_with_values[value] = action
-            else: #MIN node (hunter)
-                if value < alpha: #prune
-                    break
-                beta = min(beta, value)
-                actions_with_values[value] = action
-            
-        if len(actions_with_values) == 0: 
-            return None, float("inf") * -1**(int(agent_index == 0)) # in case any of the branches wont be taken into consideration
-        
-        if agent_index == 0:  # MAX node (drone)
-            max_value = max(actions_with_values.keys())
-            return actions_with_values[max_value], max_value
-        else:
-            min_value = min(actions_with_values.keys())
-            return actions_with_values[min_value], min_value
+
+        if agent_index == 0:  # MAX node
+            best_action = None
+            best_value = float("-inf")
+
+            for action in legal_actions:
+                successor = state.generate_successor(agent_index, action)
+                _, value = self.alphabeta_recursive(
+                    successor, next_agent, depth - 1, alpha, beta
+                )
+
+                if value > best_value:
+                    best_value = value
+                    best_action = action
+
+                alpha = max(alpha, best_value)
+
+                # strict pruning, as requested
+                if best_value > beta:
+                    return best_action, best_value
+
+            return best_action, best_value
+
+        else:  # MIN node
+            best_action = None
+            best_value = float("inf")
+
+            for action in legal_actions:
+                successor = state.generate_successor(agent_index, action)
+                _, value = self.alphabeta_recursive(
+                    successor, next_agent, depth - 1, alpha, beta
+                )
+
+                if value < best_value:
+                    best_value = value
+                    best_action = action
+
+                beta = min(beta, best_value)
+
+                # strict pruning, as requested
+                if best_value < alpha:
+                    return best_action, best_value
+
+            return best_action, best_value
 
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
